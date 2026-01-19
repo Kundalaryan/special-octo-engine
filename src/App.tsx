@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
 import { Toaster } from 'react-hot-toast'; 
 import Orders from './pages/Orders';
+import Feedback from './pages/Feedback';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/orders" element={<Orders />} /> 
+          <Route path="/feedback" element={<Feedback />} />
           {/* We can easily add more pages here later */}
         </Route>
       </Routes>

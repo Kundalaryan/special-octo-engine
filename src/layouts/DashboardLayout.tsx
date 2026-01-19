@@ -1,7 +1,7 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Package, ShoppingCart, BarChart3, Settings, 
-  LogOut, Bell, Search, Menu 
+  LogOut, Bell, Search, Menu ,MessageSquare
 } from 'lucide-react';
 
 const SidebarItem = ({ icon: Icon, label, path, active }: any) => {
@@ -48,6 +48,7 @@ const DashboardLayout = () => {
             <SidebarItem icon={Package} label="Inventory" path="/inventory" active={location.pathname === '/inventory'} />
             <SidebarItem icon={ShoppingCart} label="Orders" path="/orders" active={location.pathname === '/orders'} />
             <SidebarItem icon={BarChart3} label="Analytics" path="/analytics" active={location.pathname === '/analytics'} />
+            <SidebarItem icon={MessageSquare} label="Feedback" path="/feedback" active={location.pathname === '/feedback'} />
           </nav>
         </div>
 
