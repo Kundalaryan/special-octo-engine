@@ -17,3 +17,18 @@ export interface InventoryResponse {
   message: string;
   data: Product[];
 }
+
+export interface CreateProductDTO {
+  name: string;
+  category: string;
+  unit: string;
+  price: number;
+  stock: number;
+  description: string;
+}
+
+export interface UpdateProductDTO {
+  price?: number;
+  stock?: number;
+  category?: string;
+}

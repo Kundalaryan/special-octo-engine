@@ -11,6 +11,7 @@ const Inventory = lazy(() => import('./pages/Inventory'));
 const Orders = lazy(() => import('./pages/Orders'));
 const Feedback = lazy(() => import('./pages/Feedback'));
 const Support = lazy(() => import('./pages/Support'));
+const Delivery = lazy(() => import('./pages/Delivery'));
 
 // 2. Create a Loading Spinner Component
 const PageLoader = () => (
@@ -28,13 +29,14 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
-          
+
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/feedback" element={<Feedback />} />
             <Route path="/support" element={<Support />} />
+            <Route path="/delivery" element={<Delivery />} />
           </Route>
         </Routes>
       </Suspense>

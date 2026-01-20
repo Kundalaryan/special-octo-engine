@@ -3,13 +3,14 @@ import { useForm } from 'react-hook-form';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingBag, Lock, Phone, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { AxiosError } from 'axios';
 import api from '../api/axios';
 import type { LoginRequest, LoginResponse } from '../types/auth';
 
 const Login = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // 1. Setup Form Handling
   const { register, handleSubmit, formState: { errors } } = useForm<LoginRequest>();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -31,8 +32,7 @@ const Login = () => {
         setErrorMessage(response.message || 'Login failed');
       }
     },
-    onError: (error: any) => {
-      // robust error handling
+    onError: (error: AxiosError<{ message: string }>) => {
       const msg = error.response?.data?.message || 'Something went wrong. Please try again.';
       setErrorMessage(msg);
     }
@@ -45,7 +45,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4 font-sans">
-      
+
       {/* Logo Section */}
       <div className="mb-8 text-center">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-blue-600 text-white mb-4 shadow-lg shadow-blue-600/30">
@@ -68,7 +68,7 @@ const Login = () => {
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            
+
             {/* Phone Field (Mapped to API requirement) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone Number</label>

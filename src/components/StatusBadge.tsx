@@ -10,9 +10,3 @@ export const StatusBadge = ({ children, className = 'bg-gray-100 text-gray-700 b
     </span>
   );
 };
-
-// Helper utility to format enum strings (ORDER_PLACED -> Order Placed)
-export const formatEnum = (str: string) => {
-  if (!str) return '';
-  return str.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
-};
