@@ -1,12 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
-  Search, ChevronLeft, ChevronRight, 
-  MessageSquare, User, Calendar, Loader2 
+  Search, MessageSquare, User, Calendar, Loader2 
 } from 'lucide-react';
-import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import api from '../api/axios';
 import type { FeedbackResponse, FeedbackStatus } from '../types/feedback';
+
+// --- NEW IMPORTS ---
+import { Pagination } from '../components/Pagination';
+import { LiveIndicator } from '../components/LiveIndicator';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -32,7 +35,7 @@ const Feedback = () => {
   }, [searchInput]);
 
   // --- API Fetch ---
-  const { data: response, isLoading } = useQuery({
+  const { data: response, isLoading, isFetching } = useQuery({
     queryKey: ['suggestions', page, debouncedPhone],
     queryFn: async () => {
       const params: any = {
@@ -47,12 +50,12 @@ const Feedback = () => {
       const res = await api.get<FeedbackResponse>('/admin/suggestions', { params });
       return res.data;
     },
-    placeholderData: (prev) => prev
+    placeholderData: (prev) => prev,
+    refetchInterval: 60000, // <--- Polling: Update every 60 seconds
   });
 
   const rawSuggestions = response?.data?.content || [];
   const totalPages = response?.data?.totalPages || 0;
-  const totalElements = response?.data?.totalElements || 0;
 
   // --- Client-Side Date Filtering ---
   const displayedSuggestions = useMemo(() => {
@@ -93,6 +96,8 @@ const Feedback = () => {
           <h2 className="text-2xl font-bold text-gray-800">Suggestions & Feedback</h2>
           <p className="text-sm text-gray-500 mt-1">View-only archive of customer voices and service requests.</p>
         </div>
+        {/* Live Indicator Added Here */}
+        <LiveIndicator isFetching={isFetching} />
       </div>
 
       {/* Toolbar */}
@@ -193,35 +198,12 @@ const Feedback = () => {
         ))}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 0 && (
-          <div className="flex items-center justify-between pt-4">
-              <span className="text-sm text-gray-500">
-                  Showing {(page * ITEMS_PER_PAGE) + 1} to {Math.min((page + 1) * ITEMS_PER_PAGE, totalElements)} of {totalElements} results
-              </span>
-              <div className="flex gap-2">
-                  <button 
-                    disabled={page === 0}
-                    onClick={() => setPage(p => Math.max(0, p - 1))}
-                    className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 bg-white"
-                  >
-                      <ChevronLeft size={16} />
-                  </button>
-                  
-                  <div className="flex items-center px-4 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700">
-                    Page {page + 1}
-                  </div>
-
-                  <button 
-                    disabled={page === totalPages - 1}
-                    onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                    className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 bg-white"
-                  >
-                      <ChevronRight size={16} />
-                  </button>
-              </div>
-          </div>
-      )}
+      {/* Reusable Pagination */}
+      <Pagination 
+        page={page} 
+        totalPages={totalPages} 
+        onPageChange={setPage} 
+      />
     </div>
   );
 };

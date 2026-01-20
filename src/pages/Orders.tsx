@@ -2,15 +2,18 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { 
-  Search, Calendar, ChevronLeft, ChevronRight, 
-  MoreHorizontal, Phone, MapPin, Clock, Loader2, X,
+  Search, Calendar, MoreHorizontal, Phone, MapPin, Clock, Loader2, X,
   Check, Package, Truck, Home, AlertCircle, FileText, ChevronDown
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import api from '../api/axios';
+
+// --- Components ---
+import { LiveIndicator } from '../components/LiveIndicator';
+import { Pagination } from '../components/Pagination';
 import type { OrdersApiResponse, OrderStatus, OrderDetailsResponse, TimelineResponse } from '../types/orders';
 
-// --- Types & Config ---
+// --- Config ---
 const ITEMS_PER_PAGE = 9; 
 
 const TABS: { label: string; value: OrderStatus | '' }[] = [
@@ -54,19 +57,17 @@ const OrderDetailsModal = ({ orderId, onClose }: { orderId: number; onClose: () 
     }
   });
 
-  // 3. Invoice Download (Blob)
+  // 3. Invoice Download
   const downloadInvoiceMutation = useMutation({
     mutationFn: async () => {
-      // Use 'blob' response type to handle PDF/File data
       const res = await api.get(`/admin/orders/${orderId}/receipt`, { responseType: 'blob' });
       return res.data;
     },
     onSuccess: (data) => {
-        // Create a URL for the blob and open it
         const url = window.URL.createObjectURL(new Blob([data]));
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', `Invoice-${orderId}.pdf`); // Or .html depending on your API
+        link.setAttribute('download', `Invoice-${orderId}.pdf`);
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -75,7 +76,7 @@ const OrderDetailsModal = ({ orderId, onClose }: { orderId: number; onClose: () 
     onError: () => toast.error('Failed to download invoice')
   });
 
-  // 4. Update Status Mutation
+  // 4. Update Status
   const updateStatusMutation = useMutation({
     mutationFn: async (newStatus: OrderStatus) => {
       return await api.patch(`/admin/orders/${orderId}/status`, { status: newStatus });
@@ -90,7 +91,7 @@ const OrderDetailsModal = ({ orderId, onClose }: { orderId: number; onClose: () 
     onError: () => toast.error('Failed to update status')
   });
 
-  // 5. Cancel Order Mutation
+  // 5. Cancel Order
   const cancelOrderMutation = useMutation({
     mutationFn: async () => {
       return await api.patch(`/admin/orders/${orderId}/cancel`);
@@ -104,7 +105,6 @@ const OrderDetailsModal = ({ orderId, onClose }: { orderId: number; onClose: () 
     onError: () => toast.error('Failed to cancel order')
   });
 
-  // Helpers
   const getNextAction = (currentStatus: OrderStatus) => {
     switch (currentStatus) {
         case 'ORDER_PLACED': return { label: 'Ready to Pack', next: 'PACKED' as OrderStatus };
@@ -134,8 +134,8 @@ const OrderDetailsModal = ({ orderId, onClose }: { orderId: number; onClose: () 
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
         <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl my-auto animate-fade-in relative flex flex-col max-h-[90vh]">
             
-            {/* --- Header --- */}
-            <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-start bg-white rounded-t-xl z-10">
+            {/* --- Sticky Header --- */}
+            <div className="sticky top-0 bg-white px-8 py-6 border-b border-gray-100 flex justify-between items-start rounded-t-xl z-20 shadow-sm">
                 <div>
                     <div className="flex items-center gap-3">
                         <h2 className="text-2xl font-bold text-gray-900">Order #{details.orderId}</h2>
@@ -152,7 +152,6 @@ const OrderDetailsModal = ({ orderId, onClose }: { orderId: number; onClose: () 
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {/* Status Dropdown */}
                     {!isCancelled && details.status !== 'DELIVERED' && (
                         <div className="relative">
                             <button 
@@ -162,17 +161,20 @@ const OrderDetailsModal = ({ orderId, onClose }: { orderId: number; onClose: () 
                                 Update Status <ChevronDown size={16} />
                             </button>
                             {isStatusDropdownOpen && (
-                                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden py-1 z-20">
-                                    {ORDER_STEPS.map(step => (
-                                        <button 
-                                            key={step.status}
-                                            onClick={() => updateStatusMutation.mutate(step.status)}
-                                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600"
-                                        >
-                                            Mark as {step.label}
-                                        </button>
-                                    ))}
-                                </div>
+                                <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setIsStatusDropdownOpen(false)}></div>
+                                    <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden py-1 z-20">
+                                        {ORDER_STEPS.map(step => (
+                                            <button 
+                                                key={step.status}
+                                                onClick={() => updateStatusMutation.mutate(step.status)}
+                                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600"
+                                            >
+                                                Mark as {step.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
                             )}
                         </div>
                     )}
@@ -183,26 +185,18 @@ const OrderDetailsModal = ({ orderId, onClose }: { orderId: number; onClose: () 
             </div>
 
             <div className="overflow-y-auto p-8 space-y-8">
-                
-                {/* --- Timeline --- */}
+                {/* Timeline */}
                 <div>
                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-6">Order Journey</h3>
                     <div className="relative flex justify-between items-center max-w-3xl mx-auto">
-                        {/* Connecting Line */}
                         <div className="absolute top-5 left-0 w-full h-1 bg-gray-100 -z-0"></div>
                         <div className="absolute top-5 left-0 h-1 bg-blue-500 -z-0 transition-all duration-500" 
-                             style={{ width: isCancelled ? '0%' : 
-                                details.status === 'DELIVERED' ? '100%' : 
-                                details.status === 'OUT_FOR_DELIVERY' ? '66%' : 
-                                details.status === 'PACKED' ? '33%' : '0%' 
-                             }}>
+                             style={{ width: isCancelled ? '0%' : details.status === 'DELIVERED' ? '100%' : details.status === 'OUT_FOR_DELIVERY' ? '66%' : details.status === 'PACKED' ? '33%' : '0%' }}>
                         </div>
-
-                        {ORDER_STEPS.map((step, index) => {
+                        {ORDER_STEPS.map((step) => {
                             const isCompleted = timeline.some(t => t.status === step.status);
                             const eventData = timeline.find(t => t.status === step.status);
                             const isCurrent = details.status === step.status;
-
                             return (
                                 <div key={step.status} className="flex flex-col items-center relative z-10">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center border-4 transition-all duration-300
@@ -223,14 +217,12 @@ const OrderDetailsModal = ({ orderId, onClose }: { orderId: number; onClose: () 
                     </div>
                 </div>
 
-                {/* --- Details Grid --- */}
+                {/* Info Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
                         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Customer Details</h4>
                         <div className="flex items-start gap-4">
-                            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
-                                CP
-                            </div>
+                            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">CP</div>
                             <div>
                                 <p className="font-bold text-gray-900 text-sm">Customer Phone</p>
                                 <p className="text-blue-600 font-medium text-sm mb-1">{details.customerPhone}</p>
@@ -241,23 +233,16 @@ const OrderDetailsModal = ({ orderId, onClose }: { orderId: number; onClose: () 
                             </div>
                         </div>
                     </div>
-
                     <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
                         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Delivery Address</h4>
                         <div className="flex items-start gap-4">
-                            <div className="mt-1 text-red-500">
-                                <MapPin size={20} />
-                            </div>
-                            <div>
-                                <p className="text-gray-900 text-sm font-medium leading-relaxed">
-                                    {details.address}
-                                </p>
-                            </div>
+                            <div className="mt-1 text-red-500"><MapPin size={20} /></div>
+                            <div><p className="text-gray-900 text-sm font-medium leading-relaxed">{details.address}</p></div>
                         </div>
                     </div>
                 </div>
 
-                {/* --- Items Table --- */}
+                {/* Items */}
                 <div>
                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Ordered Items</h3>
                     <div className="border border-gray-100 rounded-xl overflow-hidden">
@@ -274,9 +259,7 @@ const OrderDetailsModal = ({ orderId, onClose }: { orderId: number; onClose: () 
                                 {details.items.map((item, idx) => (
                                     <tr key={idx}>
                                         <td className="px-6 py-4 font-medium text-gray-900 flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center text-gray-400">
-                                                <Package size={14} />
-                                            </div>
+                                            <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center text-gray-400"><Package size={14} /></div>
                                             {item.productName}
                                         </td>
                                         <td className="px-6 py-4 text-center text-gray-600">{item.quantity}</td>
@@ -294,38 +277,23 @@ const OrderDetailsModal = ({ orderId, onClose }: { orderId: number; onClose: () 
                         </table>
                     </div>
                 </div>
-
             </div>
 
-            {/* --- Footer --- */}
+            {/* Footer */}
             <div className="px-8 py-5 bg-gray-50 border-t border-gray-200 rounded-b-xl flex justify-between items-center">
                 <div className="flex gap-4">
                     {!isCancelled && details.status !== 'DELIVERED' && (
-                        <button 
-                            onClick={() => { if(confirm('Are you sure you want to cancel this order?')) cancelOrderMutation.mutate() }}
-                            className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                        >
+                        <button onClick={() => { if(confirm('Are you sure you want to cancel this order?')) cancelOrderMutation.mutate() }} className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                             <AlertCircle size={16} /> Cancel Order
                         </button>
                     )}
                 </div>
-
                 <div className="flex gap-3">
-                    <button 
-                        onClick={() => downloadInvoiceMutation.mutate()}
-                        disabled={downloadInvoiceMutation.isPending}
-                        className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2"
-                    >
-                         {downloadInvoiceMutation.isPending ? <Loader2 size={16} className="animate-spin"/> : <FileText size={16} />} 
-                         Print Invoice
+                    <button onClick={() => downloadInvoiceMutation.mutate()} disabled={downloadInvoiceMutation.isPending} className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2">
+                         {downloadInvoiceMutation.isPending ? <Loader2 size={16} className="animate-spin"/> : <FileText size={16} />} Print Invoice
                     </button>
-                    
                     {nextAction && !isCancelled && (
-                        <button 
-                            onClick={() => updateStatusMutation.mutate(nextAction.next)}
-                            disabled={updateStatusMutation.isPending}
-                            className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-md shadow-blue-200 transition-all flex items-center gap-2"
-                        >
+                        <button onClick={() => updateStatusMutation.mutate(nextAction.next)} disabled={updateStatusMutation.isPending} className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-md shadow-blue-200 transition-all flex items-center gap-2">
                             {updateStatusMutation.isPending && <Loader2 size={16} className="animate-spin"/>}
                             {nextAction.label}
                         </button>
@@ -341,9 +309,7 @@ const OrderDetailsModal = ({ orderId, onClose }: { orderId: number; onClose: () 
 // MAIN ORDERS COMPONENT
 // ==========================================
 const Orders = () => {
-  // --- UI State ---
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
-
   const [activeTab, setActiveTab] = useState<OrderStatus | ''>('');
   const [page, setPage] = useState(0);
   
@@ -352,7 +318,7 @@ const Orders = () => {
   const [startDateInput, setStartDateInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
 
-  // API State
+  // Computed Query Keys
   const [debouncedPhone, setDebouncedPhone] = useState('');
   const [queryDates, setQueryDates] = useState<{from: string, to: string} | null>(null);
 
@@ -372,7 +338,7 @@ const Orders = () => {
   }, [startDateInput, endDateInput]);
 
   // --- API Fetch ---
-  const { data: response, isLoading } = useQuery({
+  const { data: response, isLoading, isFetching } = useQuery({
     queryKey: ['orders', page, activeTab, debouncedPhone, queryDates],
     queryFn: async () => {
       const params: any = { page: page, size: ITEMS_PER_PAGE };
@@ -383,13 +349,13 @@ const Orders = () => {
       const res = await api.get<OrdersApiResponse>('/admin/orders', { params });
       return res.data;
     },
-    placeholderData: (prev) => prev 
+    placeholderData: (prev) => prev,
+    refetchInterval: 15000, // <--- Polling every 15s
   });
 
   const orders = response?.data?.content || [];
   const totalPages = response?.data?.totalPages || 0;
 
-  // Helpers
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
       case 'ORDER_PLACED': return 'bg-amber-100 text-amber-700 border-amber-200';
@@ -410,12 +376,8 @@ const Orders = () => {
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto font-sans">
       
-      {/* SHOW MODAL IF ID SELECTED */}
       {selectedOrderId && (
-        <OrderDetailsModal 
-            orderId={selectedOrderId} 
-            onClose={() => setSelectedOrderId(null)} 
-        />
+        <OrderDetailsModal orderId={selectedOrderId} onClose={() => setSelectedOrderId(null)} />
       )}
 
       {/* Header */}
@@ -424,6 +386,8 @@ const Orders = () => {
           <h2 className="text-2xl font-bold text-gray-800">Orders Management</h2>
           <p className="text-sm text-gray-500 mt-1">Track and manage customer orders.</p>
         </div>
+        {/* Live Indicator Added Here */}
+        <LiveIndicator isFetching={isFetching} />
       </div>
 
       {/* Filters */}
@@ -431,13 +395,7 @@ const Orders = () => {
         <div className="flex flex-col md:flex-row gap-4 justify-between">
             <div className="relative w-full md:w-80">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input 
-                    type="text"
-                    value={searchPhoneInput}
-                    onChange={(e) => setSearchPhoneInput(e.target.value)}
-                    placeholder="Search by phone number..."
-                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
+                <input type="text" value={searchPhoneInput} onChange={(e) => setSearchPhoneInput(e.target.value)} placeholder="Search by phone number..." className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"/>
             </div>
             <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
                 <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50">
@@ -471,11 +429,7 @@ const Orders = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {orders.map((order) => (
-                <div 
-                    key={order.id} 
-                    onClick={() => setSelectedOrderId(order.id)} // CLICK TO OPEN MODAL
-                    className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer ring-2 ring-transparent hover:ring-blue-500/20"
-                >
+                <div key={order.id} onClick={() => setSelectedOrderId(order.id)} className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer ring-2 ring-transparent hover:ring-blue-500/20">
                     <div className="flex justify-between items-start mb-4">
                         <div><span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">#{order.id}</span><h3 className="font-bold text-gray-900 text-lg mt-2 line-clamp-1">{order.customerName || 'Guest Customer'}</h3></div>
                         <MoreHorizontal className="text-gray-400" size={20} />
@@ -494,16 +448,8 @@ const Orders = () => {
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 0 && (
-          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-              <span className="text-sm text-gray-500">Page {page + 1} of {totalPages}</span>
-              <div className="flex gap-2">
-                  <button disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"><ChevronLeft size={18} /></button>
-                  <button disabled={page === totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"><ChevronRight size={18} /></button>
-              </div>
-          </div>
-      )}
+      {/* Reusable Pagination */}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   );
 };
